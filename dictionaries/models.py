@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class InstitutionType(models.Model):
     name = models.CharField(max_length=100, verbose_name='Наименование типа учереждения')
     outside_id = models.CharField(max_length=20, verbose_name='ID источника')
