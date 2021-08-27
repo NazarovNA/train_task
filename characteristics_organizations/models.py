@@ -13,7 +13,7 @@ class Organization(models.Model):
     -
     """
 
-    institution_key = models.IntegerField(verbose_name='Код учереждения')
+    institution_key = models.IntegerField(unique=True, verbose_name='Код учереждения')
     name = models.TextField(verbose_name='Наименование организации')
     inn = models.CharField(max_length=10, unique=True, verbose_name='ИНН организации')
     kpp = models.CharField(max_length=9, verbose_name='КПП организации')

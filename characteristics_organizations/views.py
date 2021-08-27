@@ -8,4 +8,3 @@ class OrganizationView(BaseModelViewSet):
     queryset = Organization.objects.all().order_by('id')
     serializer_class = OrganizationSerializer
     filterset_class = OrganizationFilter
-
