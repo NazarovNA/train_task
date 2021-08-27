@@ -6,6 +6,24 @@ from dictionaries import serializers as sr
 
 class OrganizationSerializer(serializers.ModelSerializer):
 
+    @staticmethod
+    def validate_inn(data):
+        """
+        Check that start is before finish.
+        """
+        if len(data) != 10:
+            raise serializers.ValidationError("ИНН не соотвтествует стандартной длине")
+        return data
+
+    @staticmethod
+    def validate_kpp(data):
+        """
+        Check that start is before finish.
+        """
+        if len(data) != 9:
+            raise serializers.ValidationError("КПП не соотвтествует стандартной длине")
+        return data
+
     class Meta:
         model = Organization
         fields = '__all__'

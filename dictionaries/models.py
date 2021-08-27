@@ -12,25 +12,25 @@ class OrganizationType(models.Model):
 
 
 class EgrulStatus(models.Model):
-    name = models.CharField(max_length=100, verbose_name='Наименование статуса ЕГРЮЛ')
+    name = models.CharField(max_length=200, verbose_name='Наименование статуса ЕГРЮЛ')
     outside_id = models.CharField(max_length=20, verbose_name='ID источника')
 
 
 class RubpnubpStatus(models.Model):
-    name = models.CharField(max_length=100, verbose_name='Наименование статуса РУБПНУБП')
+    name = models.CharField(max_length=200, verbose_name='Наименование статуса РУБПНУБП')
     outside_id = models.CharField(max_length=20, verbose_name='ID источника')
 
 
 class ChapterBK(models.Model):
     key = models.CharField(max_length=20, verbose_name='Код главы по БК')
-    name = models.CharField(max_length=100, verbose_name='Наименование главы по БК')
+    name = models.CharField(max_length=200, verbose_name='Наименование главы по БК')
 
 
 class IndustrySpecificTyping(models.Model):
-    name = models.CharField(max_length=100, verbose_name='Наименование отраслевой типизации')
+    name = models.CharField(max_length=200, verbose_name='Наименование отраслевой типизации')
     outside_id = models.CharField(max_length=20, verbose_name='ID источника')
 
 
 class BudgetLevel(models.Model):
-    name = models.CharField(max_length=100, verbose_name='Наименование уровня бюджета')
+    name = models.CharField(max_length=200, verbose_name='Наименование уровня бюджета')
     outside_id = models.CharField(max_length=20, verbose_name='ID источника')
