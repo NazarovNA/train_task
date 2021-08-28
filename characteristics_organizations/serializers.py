@@ -5,11 +5,11 @@ from dictionaries import serializers as sr
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
-
+    """Серелизатор признаков организации
+    """
     @staticmethod
     def validate_inn(data):
-        """
-        Check that start is before finish.
+        """Проверка поля ИНН на длину
         """
         if len(data) != 10:
             raise serializers.ValidationError("ИНН не соотвтествует стандартной длине")
@@ -17,8 +17,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_kpp(data):
-        """
-        Check that start is before finish.
+        """Проверка поля КПП на длину
         """
         if len(data) != 9:
             raise serializers.ValidationError("КПП не соотвтествует стандартной длине")
@@ -29,6 +28,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def to_representation(self, instance):
+        """Присвоение связи полей с соответствующими серелизаторами
+        """
+
         self.fields['institution_type'] = sr.InstitutionTypeSerializer()
         self.fields['organization_type'] = sr.OrganizationTypeSerializer()
         self.fields['egrul_status'] = sr.EgrulStatusSerializer()

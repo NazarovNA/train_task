@@ -8,6 +8,8 @@ from core.views import BaseModelViewSet
 
 
 class OrganizationView(BaseModelViewSet):
+    """Модель представления организаций
+    """
     queryset = Organization.objects.all().order_by('id')
     serializer_class = OrganizationSerializer
     filterset_class = OrganizationFilter

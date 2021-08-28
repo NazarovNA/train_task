@@ -7,12 +7,18 @@ from pickle import load
 
 class Organization(models.Model):
     """Модель описывающая признаки организации
-    -
-    -
-    -
-    -
-    -
-    -
+    institution_key - Код учереждения
+    name - Наименование организации
+    inn - ИНН организации
+    kpp - КПП организации
+
+    institution_type - Тип учреждения
+    organization_type - Тип организации
+    egrul_status - Статус ЕГРЮЛ
+    rubpnubp_status - Статус РУБПНУБП
+    chapter_bk - Основные совйства главы по БК
+    industry_specific_typing - Отраслевая типизация
+    budget_level - Уровень бюджета
     """
 
     institution_key = models.IntegerField(unique=True, verbose_name='Код учереждения')
@@ -37,20 +43,20 @@ class Organization(models.Model):
             for m, d in enumerate(data):
                 print(m)
                 institutiontype, _ = md.InstitutionType.objects.get_or_create(name=d['Тип учреждения'],
-                                                                           outside_id='')
+                                                                              outside_id='')
                 organizationtype, _ = md.OrganizationType.objects.get_or_create(name=d['Тип организации'],
-                                                                             outside_id='')
+                                                                                outside_id='')
                 egrulstatus, _ = md.EgrulStatus.objects.get_or_create(name=d['Статус ЕГРЮЛ'],
-                                                                   outside_id='')
+                                                                      outside_id='')
                 rubpnubpstatus, _ = md.RubpnubpStatus.objects.get_or_create(name=d['Статус РУБПНУБП'],
-                                                                         outside_id='')
+                                                                            outside_id='')
                 chapterbk, _ = md.ChapterBK.objects.get_or_create(name=d['Наименование главы по БК'],
-                                                               key=d['Код главы по БК'])
+                                                                  key=d['Код главы по БК'])
                 industryspecifictyping, _ = md.IndustrySpecificTyping.objects.get_or_create(
                     name=d['Отраслевая типизация'],
                     outside_id='')
                 budgetlevel, _ = md.BudgetLevel.objects.get_or_create(name=d['Уровень бюджета'],
-                                                                   outside_id='')
+                                                                      outside_id='')
 
                 cls.objects.get_or_create(institution_key=d['Код учреждения'],
                                           name=d['Наименование организации'],
