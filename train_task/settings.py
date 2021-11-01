@@ -38,6 +38,7 @@ INSTALLED_APPS = [
 
     'characteristics_organizations',
     'dictionaries',
+    'parser_task',
 ]
 
 MIDDLEWARE = [
