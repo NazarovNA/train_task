@@ -25,7 +25,7 @@ class ParseRequest:
         else:
             self.hierarchical_flag = False
 
-    def external_api_view(self):
+    def download_external_api(self):
         """Получение набора данных из внешней api
         :return: data: список словарей, содержащих данные из api"""
 
