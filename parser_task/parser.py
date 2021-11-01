@@ -13,8 +13,8 @@ class ParseRequest:
     иерархической структуре данных, в которой данное поле ссылается на объект модели
     """
     def __init__(self, table_of_correspondences, url, model, code_field, parent_field=None):
-        self.table_of_correspondences = table_of_correspondences
 
+        self.table_of_correspondences = table_of_correspondences
         self.url = url
         self.model = model
         self.code_field = code_field
