@@ -136,7 +136,7 @@ class ParseRequest:
         :param data: список словарей данных"""
         new_data = self.renaming_keys(data)
         new_data = self.ordered_set(new_data)
-        print('1111')
+
         if self.hierarchical_flag:
             parents, parents_codes = self.find_main_parents(new_data)
 
