@@ -5,25 +5,25 @@ from parser_task.serializers import serializer_factory
 
 class ParseRequest:
     """Класс для загрузки или обновления данных справочников из внешнего api
-    :param table_of_correspondences: словарь соответствий полей api и полей модели
+    :param table_correspondences: словарь соответствий полей api и полей модели
     :param url: ссылка на внешнюю api
     :param model: модель которую необходимо обновить
-    :param code_field: наиименование поля в котором содержится внешний код собственных код записи
-    :param parent_field: наименование поля в котором содержится код родителя при
-    иерархической структуре данных, в которой данное поле ссылается на объект модели
+    :param code_field: наиименование поля в котором содержится внешний код записи
+    :param start_page: страница с которой начинается загрузка данных из api (по умолчанию с 1 страницы)
+    :param foreign_key_fields: словарь соответствий полей модели при наличии связей с другой моделью:
+    ключами являеются поля модели, в которую заносятся даннные, значениями являютсяя списоки из трех значениий:
+    0 - модель, к которой идет связь, 1 - наименование поля связной модели по которому строится фильтр,
+    2 - наименование поля в json, которое соответствует полю в связной модели(в случае наличия такого поля в
+    таблице соответствий, необходимо ввести наименоване поля на которое оно будет изменено)
     """
-    def __init__(self, table_of_correspondences, url, model, code_field, parent_field=None):
+    def __init__(self, table_correspondences, url, model, code_field, foreign_key_fields=None, start_page=1):
 
-        self.table_of_correspondences = table_of_correspondences
+        self.table_correspondences = table_correspondences
         self.url = url
         self.model = model
         self.code_field = code_field
-        self.parent_field = parent_field
-
-        if self.parent_field:
-            self.hierarchical_flag = True
-        else:
-            self.hierarchical_flag = False
+        self.foreign_key_fields = foreign_key_fields
+        self.start_page = start_page
 
     def download_external_api(self):
         """Получение набора данных из внешней api
@@ -34,25 +34,20 @@ class ParseRequest:
             if 'pageNum' in u:
                 for_replace = u
 
-        data = []
         if for_replace:
-            page = 1
+            page = self.start_page
             while True:
                 base_url = self.url.replace(for_replace, f"pageNum={page}")
-                print(base_url)
+                print(f"url по которой происходит запрос: {base_url}")
                 r = requests.get(base_url, timeout=10)
-
                 if (r.status_code == 200) and (r.json()['data']):
-                    data += r.json()['data']
+                    data = r.json()['data']
+                    self.data_processing_and_save_in_model(data)
+                    print(f"Страница {page} из api загружена в модель")
                     page += 1
                 else:
+                    print(f"Загрузка завершилась на {page} странице")
                     break
-            return data
-        else:
-            r = requests.get(self.url, timeout=10)
-            if r.status_code == 200:
-                data += r.json()['data']
-            return data
 
     @staticmethod
     def ordered_set(data):
@@ -75,34 +70,18 @@ class ParseRequest:
             for (key, value) in d_json.items():
                 if not value:
                     value = None
-                if key in self.table_of_correspondences.keys():
-                    d[self.table_of_correspondences[key]] = value
+                if key in self.table_correspondences.keys():
+                    d[self.table_correspondences[key]] = value
+                else:
+                    d[key] = value
             new_data.append(d)
         return new_data
-
-    def find_main_parents(self, data):
-        """Метод поиска главных родителей для иерархических данных. Главным родителем принимается
-         запись с кодом ссылающемся на себя, с отсутствующем родительским кодом и с нулевым кодом
-        :param data: список словарей данных
-        :return: main_parents: список, содержащий записи о главных родителях
-        :return: parents_codes: список их собственных кодов"""
-
-        main_parents = []
-        parents_codes = []
-        for i, d in enumerate(data):
-            search_zero = False
-            if d[self.parent_field]:
-                search_zero = not bool(int(d[self.parent_field]))
-            if (d[self.code_field] == d[self.parent_field]) or (not d[self.parent_field]) or search_zero:
-                d[self.parent_field] = None
-                main_parents.append(d)
-                parents_codes.append(d[self.code_field])
-        return main_parents, parents_codes
 
     def save_list_data(self, data):
         """Метод для сохранения списка данных в модель
         :param data: список словарей данных"""
         set_objects = self.model.objects.all()
+
         for d in data:
             obj = set_objects.filter(**{self.code_field: d[self.code_field]})
             if obj.exists():
@@ -110,16 +89,22 @@ class ParseRequest:
             else:
                 instance = None
 
-            if self.hierarchical_flag:
-                parent = set_objects.filter(**{self.code_field: d[self.parent_field]})
-                if parent:
-                    d[self.parent_field] = parent[0].id
-                else:
-                    d[self.parent_field] = None
+            # занесение в связные поля модели объекты связных моделей
+            if self.foreign_key_fields:
+                for (key, value) in d.items():
+                    if key in self.foreign_key_fields.keys():
+                        connection = self.foreign_key_fields[key]
+                        if d[connection[2]]:
+                            connection_value = connection[0].objects.filter(**{connection[1]: d[connection[2]]})
+                            if connection_value:
+                                d[key] = connection_value[0].id
+                            else:
+                                d[key] = None
+                        else:
+                            d[key] = None
 
             serializer = serializer_factory(self.model)
             ser = serializer(instance=instance, data=d)
-
             if ser.is_valid():
                 ser.save()
             else:
@@ -134,35 +119,7 @@ class ParseRequest:
     def data_processing_and_save_in_model(self, data):
         """Метод для обработки данных, приведения к таблице соответствия с возможностью иерархической сортировки
         :param data: список словарей данных"""
+
         new_data = self.renaming_keys(data)
         new_data = self.ordered_set(new_data)
-
-        if self.hierarchical_flag:
-            parents, parents_codes = self.find_main_parents(new_data)
-
-            hierarchical_sort = []
-            new_parents_codes = parents_codes[:]
-            list_use_codes = []
-            while parents:
-                hierarchical_sort.append(parents)
-                parents = []
-                parents_codes = new_parents_codes[:]
-                list_use_codes += parents_codes
-                new_parents_codes = []
-                for d in new_data:
-                    if (d[self.parent_field] in parents_codes) and (d[self.parent_field]):
-                        parents.append(d)
-                        new_parents_codes.append(d[self.code_field])
-
-            without_parents = []
-            for d in new_data:
-                if not d[self.parent_field] in list_use_codes:
-                    d[self.parent_field] = None
-                    without_parents.append(d)
-            if without_parents:
-                hierarchical_sort.insert(0, without_parents)
-
-            for list_data in hierarchical_sort:
-                self.save_list_data(list_data)
-        else:
-            self.save_list_data(new_data)
+        self.save_list_data(new_data)
