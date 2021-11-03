@@ -117,7 +117,7 @@ class ParseRequest:
                     print(ser.errors)
 
     def data_processing_and_save_in_model(self, data):
-        """Метод для обработки данных, приведения к таблице соответствия с возможностью иерархической сортировки
+        """Метод для обработки данных, приведения к таблице соответствия и сохранения данных в модель
         :param data: список словарей данных"""
 
         new_data = self.renaming_keys(data)
