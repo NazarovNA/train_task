@@ -1,6 +1,6 @@
 from django_filters import rest_framework as filters
 
-from parser_task import models
+from budgetes import models
 
 
 class BudgetFilter(filters.FilterSet):

@@ -43,7 +43,7 @@ class ParseRequest:
                 if (r.status_code == 200) and (r.json()['data']):
                     data = r.json()['data']
                     self.data_processing_and_save_in_model(data)
-                    print(f"Страница {page} из api загружена в модель")
+                    print(f"Страница {page} из api загружена в модель\n")
                     page += 1
                 else:
                     print(f"Загрузка завершилась на {page} странице")

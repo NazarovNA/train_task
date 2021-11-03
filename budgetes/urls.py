@@ -1,6 +1,6 @@
 from rest_framework.routers import SimpleRouter
 
-from parser_task import views
+from budgetes import views
 
 router = SimpleRouter()
 router.register('budget', views.BudgetView, basename='budget')

@@ -1,13 +1,5 @@
 from rest_framework import serializers
 
-from parser_task import models
-
-
-class BudgetSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Budget
-        fields = '__all__'
-
 
 def serializer_factory(mod):
     """ Создает серериализатор для указанной модели

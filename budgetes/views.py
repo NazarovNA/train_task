@@ -1,4 +1,4 @@
-from parser_task import models, serializers, filters
+from budgetes import models, serializers, filters
 from core.views import BaseModelViewSet
 
 
