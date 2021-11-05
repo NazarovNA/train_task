@@ -13,8 +13,8 @@ def serializer_factory(mod):
         def renaming_keys(data, table_correspondences):
             """Метод приведения ключей данных к таблице соответствия
             :param table_correspondences: словарь соответствий полей api и полей модели
-            :param data: список словарей
-            :return: new_data: входные данные с обновленными значениями ключей по таблице"""
+            :param data: словарь
+            :return: new_data: входной словарь с обновленными значениями ключей по таблице"""
             d = {}
             for (key, value) in data.items():
                 if not value:

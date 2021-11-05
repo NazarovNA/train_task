@@ -27,8 +27,7 @@ class ParseRequest:
         self.start_page = start_page
 
     def download_external_api(self):
-        """Получение набора данных из внешней api и сохранение их в модель
-        :return: data: список словарей, содержащих данные из api"""
+        """Получение набора данных из внешней api и сохранение их в модель"""
         list_without_con = []
         for_replace = None
         for u in self.url.split('&'):
