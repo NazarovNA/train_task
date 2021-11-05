@@ -40,14 +40,16 @@ class ParseRequest:
             while True:
                 base_url = self.url.replace(for_replace, f"pageNum={page}")
                 print(f"url по которой происходит запрос: {base_url}")
+
+                if self.foreign_key_fields:
+                    print(f"Записей без связей {len(list_without_con)}")
+
                 r = requests.get(base_url, timeout=10)
                 if (r.status_code == 200) and (r.json()['data']):
                     data = r.json()['data']
 
                     serializer = serializer_factory(self.model)
-
                     data += list_without_con
-                    print(len(list_without_con))
                     list_without_con = []
 
                     for d in data:

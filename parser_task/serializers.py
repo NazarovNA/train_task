@@ -65,10 +65,8 @@ def serializer_factory(mod):
                 else:
                     flag_without_connection = 0
                     print(ser.errors)
-            if flag_without_connection:
-                return 1
-            else:
-                return 0
+
+            return flag_without_connection
 
         class Meta:
             model = mod
