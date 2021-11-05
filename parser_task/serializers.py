@@ -63,6 +63,7 @@ def serializer_factory(mod):
                 if ser.is_valid():
                     ser.save()
                 else:
+                    flag_without_connection = 0
                     print(ser.errors)
             if flag_without_connection:
                 return 1
