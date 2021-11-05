@@ -16,7 +16,7 @@ def serializer_factory(mod, json_fields, extra_keywords):
             super().__init__(instance=instance, data=empty, **kwargs)
             if data is not empty:
                 self.initial_data = data
-            self.model = model  # self.Meta.model
+            self.model = model
             self.code_field = code_field
             self.foreign_key_fields = foreign_key_fields
             self.flag_without_connection = False
