@@ -1,75 +1,63 @@
 from rest_framework import serializers
+from rest_framework.fields import empty
 
 
-def serializer_factory(mod):
+def serializer_factory(mod, json_fields, extra_keywords):
     """ Создает серериализатор для указанной модели
+    :param kwargs: параметр extra_kwargs в Meta
+    :param json_fields: параметр fields в Meta
     :param mod: модель для которой создается сериализатор
     :return AbstractSerializer: сериализатор для указанной модели
     """
 
     class AbstractSerializer(serializers.ModelSerializer):
 
-        @staticmethod
-        def renaming_keys(data, table_correspondences):
-            """Метод приведения ключей данных к таблице соответствия
-            :param table_correspondences: словарь соответствий полей api и полей модели
-            :param data: словарь
-            :return: new_data: входной словарь с обновленными значениями ключей по таблице"""
-            d = {}
-            for (key, value) in data.items():
-                if not value:
-                    value = None
-                if key in table_correspondences.keys():
-                    d[table_correspondences[key]] = value
-                else:
-                    d[key] = value
-            return d
+        def __init__(self, model, code_field, instance=None, data=empty, foreign_key_fields=None, **kwargs):
+            super().__init__(instance=instance, data=empty, **kwargs)
+            if data is not empty:
+                self.initial_data = data
+            self.model = model  # self.Meta.model
+            self.code_field = code_field
+            self.foreign_key_fields = foreign_key_fields
+            self.flag_without_connection = False
 
-        @classmethod
-        def data_api_processing(cls, data, table_correspondences, model, code_field, foreign_key_fields):
-            flag_without_connection = 0
+        def to_internal_value(self, data):
+            self.flag_without_connection = False
 
-            data = cls.renaming_keys(data, table_correspondences)
-
-            obj = model.objects.filter(**{code_field: data[code_field]})
+            obj = self.model.objects.filter(**{self.code_field: data[self.code_field]})
             if obj.exists():
-                instance = obj[0]
+                self.instance = obj[0]
             else:
-                instance = None
+                self.instance = None
 
             # занесение в связные поля модели объекты связных моделей
-            if foreign_key_fields:
+            if self.foreign_key_fields:
                 for (key, value) in data.items():
-                    if key in foreign_key_fields.keys():
-                        connection = foreign_key_fields[key]
-                        if data[connection[2]]:
-                            connection_value = connection[0].objects.filter(**{connection[1]: data[connection[2]]})
-                            if connection_value:
-                                data[key] = connection_value[0].id
-                            else:
-                                data[key] = None
-                                flag_without_connection = 1
+                    if key not in self.foreign_key_fields.keys():
+                        continue
+                    connection = self.foreign_key_fields[key]
+                    if data[connection[2]]:
+                        connection_value = connection[0].objects.filter(**{connection[1]: data[connection[2]]})
+                        if connection_value:
+                            data[key] = connection_value[0].id
                         else:
                             data[key] = None
+                            self.flag_without_connection = True
+                    else:
+                        data[key] = None
 
-            ser = cls(data=data, instance=instance)
-            if ser.is_valid():
-                ser.save()
-            else:
-                # clearning error fields
-                for error_key in ser.errors.keys():
-                    data.pop(error_key, None)
-                ser = cls(data=data, instance=instance)
-                if ser.is_valid():
-                    ser.save()
+            new_data = {}
+            for (key, value) in data.items():
+                if value:
+                    new_data[key] = value
                 else:
-                    flag_without_connection = 0
-                    print(ser.errors)
-
-            return flag_without_connection
+                    new_data[key] = None
+            new_data = super().to_internal_value(new_data)
+            return new_data
 
         class Meta:
             model = mod
-            fields = '__all__'
+            fields = json_fields
+            extra_kwargs = extra_keywords
 
     return AbstractSerializer
