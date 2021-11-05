@@ -16,6 +16,7 @@ class ParseRequest:
     2 - наименование поля в json, которое соответствует полю в связной модели(в случае наличия такого поля в
     таблице соответствий, необходимо ввести наименоване поля на которое оно будет изменено)
     """
+
     def __init__(self, table_correspondences, url, model, code_field, foreign_key_fields=None, start_page=1):
 
         self.table_correspondences = table_correspondences
@@ -28,7 +29,7 @@ class ParseRequest:
     def download_external_api(self):
         """Получение набора данных из внешней api
         :return: data: список словарей, содержащих данные из api"""
-
+        list_without_con = []
         for_replace = None
         for u in self.url.split('&'):
             if 'pageNum' in u:
@@ -42,7 +43,19 @@ class ParseRequest:
                 r = requests.get(base_url, timeout=10)
                 if (r.status_code == 200) and (r.json()['data']):
                     data = r.json()['data']
-                    self.data_processing_and_save_in_model(data)
+                    data = self.ordered_set(data)
+                    serializer = serializer_factory(self.model)
+                    data += list_without_con
+                    print(len(list_without_con))
+                    list_without_con = []
+                    for d in data:
+                        without_con = serializer.data_api_processing(data=d,
+                                                                     table_correspondences=self.table_correspondences,
+                                                                     model=self.model,
+                                                                     code_field=self.code_field,
+                                                                     foreign_key_fields=self.foreign_key_fields)
+                        if without_con:
+                            list_without_con.append(d)
                     print(f"Страница {page} из api загружена в модель\n")
                     page += 1
                 else:
@@ -59,74 +72,3 @@ class ParseRequest:
             if not (d in out_list):
                 out_list.append(d)
         return out_list
-
-    def renaming_keys(self, data):
-        """Метод приведения ключей данных к таблице соответствия
-        :param data: список словарей
-        :return: new_data: входные данные с обновленными значениями ключей по таблице"""
-        new_data = []
-        for i, d_json in enumerate(data):
-            d = {}
-            for (key, value) in d_json.items():
-                if not value:
-                    value = None
-                if key in self.table_correspondences.keys():
-                    d[self.table_correspondences[key]] = value
-                else:
-                    d[key] = value
-            new_data.append(d)
-        return new_data
-
-    def save_list_data(self, data):
-        """Метод для сохранения списка данных в модель
-        :param data: список словарей данных"""
-        # serializer = serializer_factory(self.model)
-        # ser = serializer(data=data, many=True)
-        # if ser.is_valid():
-        #     ser.save()
-        # else:
-        #     print(ser.errors)
-            
-        set_objects = self.model.objects.all()
-
-        for d in data:
-            obj = set_objects.filter(**{self.code_field: d[self.code_field]})
-            if obj.exists():
-                instance = obj[0]
-            else:
-                instance = None
-
-            # занесение в связные поля модели объекты связных моделей
-            if self.foreign_key_fields:
-                for (key, value) in d.items():
-                    if key in self.foreign_key_fields.keys():
-                        connection = self.foreign_key_fields[key]
-                        if d[connection[2]]:
-                            connection_value = connection[0].objects.filter(**{connection[1]: d[connection[2]]})
-                            if connection_value:
-                                d[key] = connection_value[0].id
-                            else:
-                                d[key] = None
-                        else:
-                            d[key] = None
-
-            serializer = serializer_factory(self.model)
-            ser = serializer(instance=instance, data=d)
-            if ser.is_valid():
-                ser.save()
-            else:
-                for error_key in ser.errors.keys():
-                    d.pop(error_key, None)
-                ser = serializer(instance=instance, data=d)
-                if ser.is_valid():
-                    ser.save()
-                else:
-                    print(ser.errors)
-
-    def data_processing_and_save_in_model(self, data):
-        """Метод для обработки данных, приведения к таблице соответствия и сохранения данных в модель
-        :param data: список словарей данных"""
-
-        new_data = self.renaming_keys(data)
-        new_data = self.ordered_set(new_data)
-        self.save_list_data(new_data)
