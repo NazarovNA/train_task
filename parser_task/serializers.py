@@ -12,6 +12,7 @@ def serializer_factory(mod):
         @staticmethod
         def renaming_keys(data, table_correspondences):
             """Метод приведения ключей данных к таблице соответствия
+            :param table_correspondences: словарь соответствий полей api и полей модели
             :param data: список словарей
             :return: new_data: входные данные с обновленными значениями ключей по таблице"""
             d = {}
@@ -24,15 +25,13 @@ def serializer_factory(mod):
                     d[key] = value
             return d
 
-        @staticmethod
-        def data_api_processing(data, table_correspondences, model, code_field, foreign_key_fields):
+        @classmethod
+        def data_api_processing(cls, data, table_correspondences, model, code_field, foreign_key_fields):
             flag_without_connection = 0
 
-            data = AbstractSerializer.renaming_keys(data, table_correspondences)
+            data = cls.renaming_keys(data, table_correspondences)
 
-            set_objects = model.objects.all()
-
-            obj = set_objects.filter(**{code_field: data[code_field]})
+            obj = model.objects.filter(**{code_field: data[code_field]})
             if obj.exists():
                 instance = obj[0]
             else:
@@ -53,21 +52,17 @@ def serializer_factory(mod):
                         else:
                             data[key] = None
 
-            ser = AbstractSerializer(data=data, instance=instance)
+            ser = cls(data=data, instance=instance)
             if ser.is_valid():
-                #print('save1')
                 ser.save()
             else:
-                # здесь убрать если ерроры чойсов
+                # clearning error fields
                 for error_key in ser.errors.keys():
                     data.pop(error_key, None)
-                ser = AbstractSerializer(data=data, instance=instance)
+                ser = cls(data=data, instance=instance)
                 if ser.is_valid():
-                    #print('save2')
                     ser.save()
                 else:
-
-                    flag_without_connection = 0
                     print(ser.errors)
             if flag_without_connection:
                 return 1
