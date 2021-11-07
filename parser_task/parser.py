@@ -35,6 +35,13 @@ class ParseRequest:
                 for_replace = u
         page = self.start_page
 
+        extra_keywords = self.get_extra_kwargs()
+        json_fields = self.get_json_fields()
+        serializer = serializer_factory(mod=self.model, list_fields=json_fields,
+                                        extra_keywords=extra_keywords,
+                                        field_code=self.code_field,
+                                        dict_foreign_key_fields=self.foreign_key_fields)
+
         while True:
             base_url = self.url.replace(for_replace, f"pageNum={page}")
             print(f"url по которой происходит запрос: {base_url}")
@@ -42,14 +49,11 @@ class ParseRequest:
             r = requests.get(base_url, timeout=10)
             if (r.status_code == 200) and (r.json()['data']):
                 data = r.json()['data']
-                extra_keywords = self.get_extra_kwargs()
-                json_fields = self.get_json_fields()
-                serializer = serializer_factory(mod=self.model, json_fields=json_fields, extra_keywords=extra_keywords)
+
                 data += list_without_con
                 list_without_con = []
                 for d in data:
-                    ser = serializer(data=d, model=self.model, code_field=self.code_field,
-                                     foreign_key_fields=self.foreign_key_fields)
+                    ser = serializer(data=d)
                     if not ser.is_valid():
                         print(ser.errors)
                         continue
@@ -57,12 +61,12 @@ class ParseRequest:
                     if ser.flag_without_connection:
                         list_without_con.append(d)
 
-                if self.foreign_key_fields:
-                    print(f"Записей без связей {len(list_without_con)}")
                 print(f"Страница {page} из api загружена в модель\n")
                 page += 1
             else:
                 print(f"Загрузка завершилась на {page} странице")
+                if self.foreign_key_fields:
+                    print(f"Записей без связей {len(list_without_con)}")
                 break
 
     def get_extra_kwargs(self):
