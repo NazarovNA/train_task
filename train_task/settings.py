@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django_filters',
 
     'parser_task',
+    'old_parser_task',
     'budgetes',
 ]
 
