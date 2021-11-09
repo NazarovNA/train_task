@@ -66,6 +66,9 @@ class ParseExternalApi:
     def get_url(self, size_page, page_number):
         """
         Метод для получения URL с настройками
+        :param size_page: размер страницы
+        :param page_number: номер страницы
+        :return собранная url с параметрами
         """
         return f"{self.base_url}?pageSize={size_page}&{self.url_settings}&pageNum={page_number}"
 
