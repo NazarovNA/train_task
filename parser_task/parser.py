@@ -66,6 +66,5 @@ class ParseRequest:
                 page += 1
             else:
                 print(f"Загрузка завершилась на {page} странице")
-                if self.foreign_key_fields:
-                    print(f"Записей без связей {len(list_without_con)}")
+                print(f"Записей без связей {len(list_without_con)}")
                 break
