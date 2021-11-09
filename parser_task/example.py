@@ -3,8 +3,8 @@
 from budgetes.models import Budget
 
 from parser_task.parser import ParseExternalApi
-url_settings = 'filterstatus=ACTIVE'
 
+url_settings = 'filterstatus=ACTIVE'
 
 base_url = "http://budget.gov.ru/epbs/registry/7710568760-BUDGETS/data"
 url_settings = 'filterstatus=ACTIVE'
@@ -17,5 +17,5 @@ json_fields = ('code', 'name', 'parentcode', 'enddate', 'startdate', 'status', '
 model = Budget
 
 a = ParseExternalApi(base_url=base_url, url_settings=url_settings, extra_kwargs=extra_kwargs,
-                    extend_extra_kwargs=extend_extra_kwargs, json_fields=json_fields, model=model)
+                     extend_extra_kwargs=extend_extra_kwargs, json_fields=json_fields, model=model)
 a.download_api()
