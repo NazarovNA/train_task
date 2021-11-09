@@ -2,20 +2,20 @@
 
 from budgetes.models import Budget
 
-from parser_task.parser import ParseRequest
-from parser_task.serializers import AbstractSerializer
+from parser_task.parser import ParseExternalApi
+url_settings = 'filterstatus=ACTIVE'
 
 
-class ParseSerializer(AbstractSerializer):
-    class Meta:
-        model = Budget
-        fields = ('code', 'name', 'parentcode', 'enddate', 'startdate', 'status', 'budgtypecode')
-        extra_kwargs = {'budgtypecode': {'source': 'budgettype'}}
-        code_field = 'code'
-        foreign_key_fields = {'parentcode': [Budget, 'code', 'parentcode']}
+base_url = "http://budget.gov.ru/epbs/registry/7710568760-BUDGETS/data"
+url_settings = 'filterstatus=ACTIVE'
+extra_kwargs = {'budgtypecode': {'source': 'budgettype'}}
+extend_extra_kwargs = {'parentcode': {'foreign_model': Budget, 'foreign_model_lookup_field': 'code'},
+                       'code': {'foreign_model': Budget, 'foreign_model_lookup_field': 'code'}}
 
+json_fields = ('code', 'name', 'parentcode', 'enddate', 'startdate', 'status', 'budgtypecode')
 
-url = "http://budget.gov.ru/epbs/registry/7710568760-BUDGETS/data?pageSize=1000&filterstatus=ACTIVE&pageNum=1"
+model = Budget
 
-a = ParseRequest(serializer=ParseSerializer, url=url)
-a.download_external_api()
+a = ParseExternalApi(base_url=base_url, url_settings=url_settings, extra_kwargs=extra_kwargs,
+                    extend_extra_kwargs=extend_extra_kwargs, json_fields=json_fields, model=model)
+a.download_api()

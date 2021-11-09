@@ -1,40 +1,46 @@
+"""
+1. Доделываем фабрику по шаблону.
+2. Цикл по extra_kwargs
+3. Сопоставление со словарем extend_extra_kwargs и получение из него доп параметры
+4. нейминг, описания
+"""
 import copy
 
 from rest_framework import serializers
 
 
-class AbstractSerializer(serializers.ModelSerializer):
+class ParseApiSerializer(serializers.ModelSerializer):
     """
     Сериализатор предназначенный для обеспечения загрузки и обновления справочников из API.
 
     Параметры, передающиеся в Meta класс для обеспечения работы сериализатора по назначению:
         model: модель для которой создается сериализатор.
-        foreign_key_fields: словарь соответствий полей модели при наличии связей с другой моделью:
+        extend_extra_kwargs: дополнение к extra_kwargs
     ключами являеются наименования полей json, котороые соответствуют полям модели, значениями являются списки
-    из трех значениий: 0 - модель, к которой идет связь, 1 - наименование поля связной модели по которому
-    строится фильтр, 2 - наименование поля в json, которое соответствует полю в связной модели.
-        code_field:  наиименование поля json в котором содержится внешний код записи, соотнеся который с полем
-    модели можно найти можно найти данную запись если она существует.
-        fields: является списком полей json для заполнения модели.
-        extra_kwargs: является таблией соответствий при различных наменованиях полей json и соответствующих им
-    полей модели. Передается в формате {наименование поля json: 'source': наименование поля в модели}.
+    из двух значениий: 1 - модель, к которой идет связь, 2 - наименование поля связной модели по которому
+    строится фильтр.
+    {'Поле json': {'foreign_model': 'Модель в которой ищем' 'foreign_model_lookup_field': 'Поле по которому ищем'}}
+    Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели необходимо заполнить
+    конструкцию {'поле pk в json': {'foreign_model': 'текущая модель' 'foreign_model_lookup_field': 'поле pk в json'}}
     """
-    # флаг необходимый для выделения записи, у которой в связном поле не нашлось соответствий
-    flag_without_connection = False
 
-    def get_code_field(self):
+    def get_combining_extra_kwargs(self):
         """
-        Метод позволяет получить наименование полей json и модели, содержащих код, по котороому можно найти
-        данную запись json в модели.
-        Наименование поля модели необходимо для наложения фильтра.
-        Наименование поля json необходимо для получения значения, по которому накладывается фильтр.
+        Метод позволяет получить параметр extra_kwargs объединенный с extend_extra_kwargs
         """
-        json_code_field = copy.deepcopy(getattr(self.Meta, 'code_field', None))
         extra_kwargs = self.get_extra_kwargs()
-        if json_code_field in extra_kwargs.keys():
-            return json_code_field, extra_kwargs[json_code_field]['source']
-        else:
-            return json_code_field, json_code_field
+        extend_extra_kwargs = copy.deepcopy(getattr(self.Meta, 'extend_extra_kwargs', None))
+
+        if not extra_kwargs:
+            return extend_extra_kwargs
+
+        for field in extra_kwargs.keys():
+            if field in extend_extra_kwargs.keys():
+                extra_kwargs[field].update(extend_extra_kwargs[field])
+                del extend_extra_kwargs[field]
+        extra_kwargs.update(extend_extra_kwargs)
+
+        return extra_kwargs
 
     def to_internal_value(self, data):
         """
@@ -43,12 +49,18 @@ class AbstractSerializer(serializers.ModelSerializer):
         данных и в случае отличия наименований полей входного параметра data с полями модели, происходит
         их переименование в соответствии с extra_kwargs.
         """
-        self.flag_without_connection = False
-
         # получение параметров из Meta класса
-        json_code_field, model_code_field = self.get_code_field()
-        foreign_key_fields = copy.deepcopy(getattr(self.Meta, 'foreign_key_fields', {}))
+        extra_kwargs = self.get_combining_extra_kwargs()
         model = copy.deepcopy(getattr(self.Meta, 'model', None))
+
+        for key, value in extra_kwargs.items():
+            if key in value.values():
+                if 'source' in value:
+                    json_code_field = key
+                    model_code_field = value['source']
+                else:
+                    json_code_field = key
+                    model_code_field = key
 
         # проверка на наличие такой записи в моделе
         obj = model.objects.filter(**{model_code_field: data[json_code_field]})
@@ -61,22 +73,22 @@ class AbstractSerializer(serializers.ModelSerializer):
         for (key, value) in data.items():
             if not value:
                 data[key] = None
-            if foreign_key_fields is None:
                 continue
-            if key not in foreign_key_fields.keys():
+            if key not in extra_kwargs.keys():
                 continue
-            connection = foreign_key_fields[key]
-            if data[connection[2]]:
-                # наложение фильтра на связную модель для определения id записи
-                connection_value = connection[0].objects.filter(**{connection[1]: data[connection[2]]})
-                if connection_value:
-                    data[key] = connection_value[0].id
-                else:
-                    data[key] = None
-                    # флаг True ставится в случае отсутствия элемента в связной модели
-                    self.flag_without_connection = True
+            if key in extra_kwargs[key].values():
+                continue
+            connection = extra_kwargs[key]
+            if 'foreign_model' not in connection:
+                continue
+            # наложение фильтра на связную модель для определения id записи
+            connection_value = connection['foreign_model'].objects.filter(
+                **{connection['foreign_model_lookup_field']: data[key]})
+            if connection_value:
+                data[key] = connection_value[0].id
             else:
-                data[key] = None
+                data[key] = -1
+
         data = super().to_internal_value(data)
 
         return data

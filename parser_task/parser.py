@@ -1,70 +1,100 @@
+""""
+вынести низкоуровневые методы из реализации
+"""
 import requests
 
+from parser_task.serializers import ParseApiSerializer
 
-class ParseRequest:
+
+class ParseExternalApi:
     """
     Класс для загрузки и обновления данных справочников из внешнего API.
-    :param serializer: сериализатор, для модели в которую происходит загрузка данных. Для его получения необходимо
-    передать соответствующие параметры Meta в сериализатор AbstractSerializer
-    :param url: ссылка на API, из которой будет проводиться загрузка данных с указанием параметра pageNum.
-    :param start_page: страница с которой начинается загрузка данных (по умолчанию загрузка начинается
-    с 1 страницы)
+    :param model: модель в которую необходимо обеспечить загрузку.
+    :param extend_extra_kwargs: словарь - дополнение к extra_kwargs. Ключами являеются наименования полей json для
+    занесения в модель. Значениями являются словари, которые запоняются по шаблону
+    {'Поле json': {'foreign_model': 'Модель в которой ищем', 'foreign_model_lookup_field':'Поле по которому ищем'}}
+    Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели необходимо в
+    параметр 'foreign_model_lookup_field' занести поле pk в json
+    :param json_fields кортеж полей json для заполнения модели
+    :param extra_kwargs является таблией соответствий при различных наменованиях полей json и соответствующих
+    им полей модели. Передается в формате: {наименование поля json: 'source': наименование поля в модели}
+    :param base_url: ссылка на API, без указания параметров запроса.
+    :param url_settings: параметры запроса к API для url
     """
 
-    def __init__(self, serializer, url, start_page=1):
+    def __init__(self, model, extend_extra_kwargs, json_fields, extra_kwargs, base_url, url_settings=''):
         """
-        :param serializer: сериализатор, для модели в которую происходит загрузка данных. Для его получения необходимо
-        передать соответствующие параметры Meta в сериализатор AbstractSerializer
-        :param url: ссылка на внешнюю API, из которой будет проводиться загрузка данных с указанием параметра pageNum.
-        :param start_page: страница с которой начинается загрузка данных из API (по умолчанию загрузка начинается
-        с 1 страницы)
+        :param model: модель в которую необходимо обеспечить загрузку.
+        :param extend_extra_kwargs: словарь - дополнение к extra_kwargs. Ключами являеются наименования полей json для
+        занесения в модель. Значениями являются словари, которые запоняются по шаблону
+        {'Поле json': {'foreign_model': 'Модель в которой ищем', 'foreign_model_lookup_field':'Поле по которому ищем'}}
+        Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели необходимо в
+        параметр 'foreign_model_lookup_field' занести поле pk в json
+        :param json_fields кортеж полей json для заполнения модели
+        :param extra_kwargs является таблией соответствий при различных наменованиях полей json и соответствующих
+        им полей модели. Передается в формате: {наименование поля json: 'source': наименование поля в модели}
+        :param base_url: ссылка на API, без указания параметров запроса.
+        :param url_settings: параметры запроса к API для url
         """
-        self.serializer = serializer
-        self.url = url
-        self.start_page = start_page
 
-    def download_external_api(self):
+        self.extend_extra_kwargs = extend_extra_kwargs
+        self.extra_kwargs = extra_kwargs
+        self.json_fields = json_fields
+        self.model = model
+        self.base_url = base_url
+        self.url_settings = url_settings
+
+    def download_api(self):
         """
-        Метод для получения набора данных из API и сохранение их в модель.
+        Метод для получения набора данных из API и сохранения их в модель.
         При вызове данного метода начинается загрузка и сохранение данных из внешней API.
         """
-        # определение списока для занесения туда записей, у которых небыло найдено указанных связей
-        list_without_con = []
-        # нахождение параметра pageNum в url
-        for_replace = None
-        for u in self.url.split('&'):
-            if 'pageNum' in u:
-                for_replace = u
-        page = self.start_page
-        # начало загрузки. загрузка останавливается в случае, если пришел пустой ответ с пустыми данными
-        # или произошла ошибка
+        page_number = 1
+        size_page = 1000
+        serializer = self.serializer_factory()
         while True:
-            # построение url для запроса
-            base_url = self.url.replace(for_replace, f"pageNum={page}")
-            print(f"url по которой происходит запрос: {base_url}")
-            # отправка запроса
-            r = requests.get(base_url, timeout=10)
-            if (r.status_code == 200) and (r.json()['data']):
-                # в случае непустого корректного ответа вычленение данных
-                data = r.json()['data']
-                data += list_without_con
-                list_without_con = []
-
-                for d in data:
-                    # занесение записи в сериализатор, проведение валидации и в случае корректноси сохранение
-                    ser = self.serializer(data=d)
-                    if not ser.is_valid():
-                        print(ser.errors)
-                        continue
-                    ser.save()
-                    # В случае флага True запись является без указанной связи, определение этого и отправка такой
-                    # записи на следующую иттерацию если такая есть
-                    if ser.flag_without_connection:
-                        list_without_con.append(d)
-
-                print(f"Страница {page} из api загружена в модель\n")
-                page += 1
-            else:
-                print(f"Загрузка завершилась на {page} странице")
-                print(f"Записей без связей {len(list_without_con)}")
+            data = self.make_request(size_page, page_number) # произведение запроса к API
+            if data is None:
                 break
+            for record in data:
+                ser = serializer(data=record)
+                if not ser.is_valid():
+                    print(ser.errors)
+                    continue
+                ser.save()
+
+            print(f"Страница {page_number} из api загружена в модель\n")
+            page_number += 1
+
+    def get_url(self, size_page, page_number):
+        """
+        Метод для получения URL с настройками
+        """
+        return f"{self.base_url}?pageSize={size_page}&{self.url_settings}&pageNum={page_number}"
+
+    def make_request(self, size_page, page_number):
+        """
+        Метод для произведения запроса к API.
+        """
+        url = self.get_url(size_page, page_number)
+        print(f"url по которой происходит запрос: {url}")
+        req = requests.get(url, timeout=10)
+        if (req.status_code == 200) and len(req.json()['data'])==size_page:
+            return req.json()['data']
+        else:
+            print(f"Загрузка завершилась на {page_number} странице")
+            return None
+
+    def serializer_factory(self):
+        """
+        Метод для создания сериализатора с настройками для указанной модели.
+        """
+
+        class ConfiguredSerializer(ParseApiSerializer):
+            class Meta:
+                model = self.model
+                fields = self.json_fields
+                extra_kwargs = self.extra_kwargs
+                extend_extra_kwargs = self.extend_extra_kwargs
+
+        return ConfiguredSerializer
