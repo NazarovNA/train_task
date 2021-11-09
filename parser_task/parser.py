@@ -50,7 +50,7 @@ class ParseExternalApi:
         size_page = 1000
         serializer = self.serializer_factory()
         while True:
-            data = self.make_request(size_page, page_number) # произведение запроса к API
+            data = self.make_request(size_page, page_number)  # произведение запроса к API
             if data is None:
                 break
             for record in data:
@@ -76,9 +76,12 @@ class ParseExternalApi:
         url = self.get_url(size_page, page_number)
         print(f"url по которой происходит запрос: {url}")
         req = requests.get(url, timeout=10)
-        if (req.status_code == 200) and len(req.json()['data'])==size_page:
+        if (req.status_code == 200) and len(req.json()['data']) == size_page:
             return req.json()['data']
         else:
+            if req.status_code == 404:
+                print(f"Страница с номером {page_number} не существует")
+                return None
             print(f"Загрузка завершилась на {page_number} странице")
             return None
 
@@ -86,6 +89,7 @@ class ParseExternalApi:
         """
         Метод для создания сериализатора с настройками для указанной модели.
         """
+
         class ConfiguredSerializer(ParseApiSerializer):
             class Meta:
                 model = self.model
