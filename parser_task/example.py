@@ -1,8 +1,7 @@
 """Пример использования алгоритма, для загрузки и обновления данных модели Budget"""
 
-from budgetes.models import Budget
-
 from parser_task.parser import ParseExternalApi
+from budgetes.models import Budget
 
 url_settings = 'filterstatus=ACTIVE'
 
@@ -19,3 +18,4 @@ model = Budget
 a = ParseExternalApi(base_url=base_url, url_settings=url_settings, extra_kwargs=extra_kwargs,
                      extend_extra_kwargs=extend_extra_kwargs, json_fields=json_fields, model=model)
 a.download_api()
+
