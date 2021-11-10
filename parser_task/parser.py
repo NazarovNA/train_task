@@ -1,6 +1,10 @@
+import copy
+
 import requests
 
 from parser_task.serializers import ParseApiSerializer
+
+import logging
 
 
 class ParseExternalApi:
@@ -8,10 +12,12 @@ class ParseExternalApi:
     Класс для загрузки и обновления данных справочников из внешнего API.
     :param model: модель в которую необходимо обеспечить загрузку.
     :param extend_extra_kwargs: словарь - дополнение к extra_kwargs. Ключами являеются наименования полей json для
-    занесения в модель. Значениями являются словари, которые запоняются по шаблону
-    {'Поле json': {'foreign_model': 'Модель в которой ищем', 'foreign_model_lookup_field':'Поле по которому ищем'}}
-    Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели, необходимо в
-    параметр 'foreign_model_lookup_field' занести наименование поля pk в json
+    занесения модели. Значениями являются словари, которые запоняются по шаблону
+    {'Поле json': {'foreign_model': 'Модель в которой ищем', 'foreign_model_lookup_field':'Поле по которому ищем',
+    'values_map': {'Какое значение': 'На какое заменяем'}}
+    Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели необходимо в заполнить
+    параметры foreign_model: и foreign_model_lookup_field.
+    Для замены определенных значений поля необходимо заполнить параметр values_map.
     :param json_fields кортеж полей json для заполнения модели
     :param extra_kwargs является таблией соответствий при различных наменованиях полей json и соответствующих
     им полей модели. Передается в формате: {наименование поля json: 'source': наименование поля в модели}
@@ -22,11 +28,13 @@ class ParseExternalApi:
     def __init__(self, model, extend_extra_kwargs, json_fields, extra_kwargs, base_url, url_settings=''):
         """
         :param model: модель в которую необходимо обеспечить загрузку.
-        :param extend_extra_kwargs: словарь - дополнение к extra_kwargs. Ключами являеются наименования полей json для
-        занесения в модель. Значениями являются словари, которые запоняются по шаблону
-        {'Поле json': {'foreign_model': 'Модель в которой ищем', 'foreign_model_lookup_field':'Поле по которому ищем'}}
-        Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели, необходимо в
-        параметр 'foreign_model_lookup_field' занести наименование поля pk в json
+        :param extend_extra_kwargs: ссловарь - дополнение к extra_kwargs. Ключами являеются наименования полей json для
+        занесения модели. Значениями являются словари, которые запоняются по шаблону
+        {'Поле json': {'foreign_model': 'Модель в которой ищем', 'foreign_model_lookup_field':'Поле по которому ищем',
+        'values_map': {'Какое значение': 'На какое заменяем'}}
+        Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели необходимо в заполнить
+        параметры foreign_model: и foreign_model_lookup_field.
+        Для замены определенных значений поля необходимо заполнить параметр values_map.
         :param json_fields кортеж полей json для заполнения модели
         :param extra_kwargs является таблией соответствий при различных наменованиях полей json и соответствующих
         им полей модели. Передается в формате: {наименование поля json: 'source': наименование поля в модели}
@@ -40,6 +48,7 @@ class ParseExternalApi:
         self.model = model
         self.base_url = base_url
         self.url_settings = url_settings
+        self.logger = logging.getLogger(__name__)
 
     def download_api(self):
         """
@@ -47,48 +56,60 @@ class ParseExternalApi:
         При вызове данного метода начинается загрузка и сохранение данных из внешней API.
         """
         page_number = 1
-        size_page = 1000
-        serializer = self.serializer_factory()
+        page_size = 1000
+        invalid_data = []
+        serializer = self.get_serializer()
         while True:
-            data = self.make_request(size_page, page_number)  # произведение запроса к API
+            data = self.make_request(page_size, page_number)  # произведение запроса к API
             if data is None:
                 break
+            data += invalid_data
+            invalid_data = []
             for record in data:
-                ser = serializer(data=record)
-                if not ser.is_valid():
-                    print(ser.errors)
-                    continue
-                ser.save()
 
-            print(f"Страница {page_number} из api загружена в модель\n")
+                deserialized_data = serializer(data=copy.deepcopy(record))
+                if not deserialized_data.is_valid():
+                    self.logger.error(deserialized_data.errors)
+                    #print(record)
+                    #print(deserialized_data.errors)
+                    invalid_data.append(record)
+                    continue
+                deserialized_data.save()
+            self.logger.info(f"Страница {page_number} из api загружена в модель")
             page_number += 1
 
-    def get_url(self, size_page, page_number):
-        """
-        Метод для получения URL с настройками
-        :param size_page: размер страницы
-        :param page_number: номер страницы
-        :return собранная url с параметрами
-        """
-        return f"{self.base_url}?pageSize={size_page}&{self.url_settings}&pageNum={page_number}"
+        while invalid_data:
+            len_data = len(invalid_data)
+            for record in invalid_data:
+                deserialized_data = serializer(data=copy.deepcopy(record))
+                if not deserialized_data.is_valid():
+                    self.logger.error(deserialized_data.errors)
+                    continue
+                deserialized_data.save()
+                invalid_data.remove(record)
+            len_invalid_data = len(invalid_data)
+            if len_data == len_invalid_data:
+                self.logger.info(f"{len(invalid_data)} записей невалидны.")
+                break
+        self.logger.info('Загрузка завершена')
 
     def make_request(self, size_page, page_number):
         """
         Метод для произведения запроса к API.
         """
-        url = self.get_url(size_page, page_number)
-        print(f"url по которой происходит запрос: {url}")
+        url = f"{self.base_url}?pageSize={size_page}&{self.url_settings}&pageNum={page_number}"
+        self.logger.info(f"url по которой происходит запрос: {url}")
         req = requests.get(url, timeout=10)
         if (req.status_code == 200) and len(req.json()['data']) == size_page:
             return req.json()['data']
         else:
             if req.status_code == 404:
-                print(f"Страница с номером {page_number} не существует")
+                self.logger.error(f"Страница с номером {page_number} не существует")
                 return None
-            print(f"Загрузка завершилась на {page_number} странице")
+            self.logger.info(f"Загрузка завершилась на {page_number} странице")
             return None
 
-    def serializer_factory(self):
+    def get_serializer(self):
         """
         Метод для создания сериализатора с настройками для указанной модели.
         """

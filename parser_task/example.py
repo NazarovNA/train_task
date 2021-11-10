@@ -8,7 +8,8 @@ url_settings = 'filterstatus=ACTIVE'
 base_url = "http://budget.gov.ru/epbs/registry/7710568760-BUDGETS/data"
 url_settings = 'filterstatus=ACTIVE'
 extra_kwargs = {'budgtypecode': {'source': 'budgettype'}}
-extend_extra_kwargs = {'parentcode': {'foreign_model': Budget, 'foreign_model_lookup_field': 'code'},
+extend_extra_kwargs = {'parentcode': {'foreign_model': Budget, 'foreign_model_lookup_field': 'code',
+                                      'values_map': {'00000000': None}},
                        'code': {'foreign_model': Budget, 'foreign_model_lookup_field': 'code'}}
 
 json_fields = ('code', 'name', 'parentcode', 'enddate', 'startdate', 'status', 'budgtypecode')
