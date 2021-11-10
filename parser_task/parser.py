@@ -98,7 +98,7 @@ class ParseExternalApi:
             self.logger.info(f"Загрузка завершилась на {page_number - 1} странице")
             return None
         else:
-            self.logger.error(f"Загрузка данных на странице {page_number} вызвала ошибку")
+            self.logger.warning(f"Загрузка данных на странице {page_number} вызвала ошибку")
             return None
 
     def deserializing(self, serializer, data, flag_logger=False):
