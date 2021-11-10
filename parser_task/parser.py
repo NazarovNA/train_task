@@ -116,7 +116,7 @@ class ParseExternalApi:
             deserialized_data = serializer(data=copy.deepcopy(record))
             if not deserialized_data.is_valid():
                 if flag_logger:
-                    self.logger.error(deserialized_data.errors)
+                    self.logger.warning(deserialized_data.errors)
                 not_imported_json.append(record)
                 continue
             deserialized_data.save()
