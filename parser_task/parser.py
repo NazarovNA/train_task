@@ -67,7 +67,7 @@ class ParseExternalApi:
             if request is None:
                 break
             data = request['data']
-            page_count = request['pageCount']
+            page_count = int(request['pageCount'])
             not_imported_json, imported = self.deserializing(serializer=serializer, data=data)
             not_imported_json_data.extend(not_imported_json)
             self.logger.info(f"Страница {page_number} из api загружена в модель")
