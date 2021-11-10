@@ -70,7 +70,7 @@ class ParseExternalApi:
             page_count = int(request['pageCount'])
             not_imported_json, imported = self.deserializing(serializer=serializer, data=data)
             not_imported_json_data.extend(not_imported_json)
-            self.logger.info(f"Страница {page_number} из api загружена в модель")
+            self.logger.info(f"Страница {page_number} из api загружена")
             page_number += 1
 
         # дозагрузка невалидных ранее данных
@@ -80,9 +80,9 @@ class ParseExternalApi:
 
         if not not_imported_json_data:
             self.deserializing(serializer=serializer, data=not_imported_json_data, flag_logger=True)
-            self.logger.info(f"Дозагрузка завершена. {len(not_imported_json_data)} записей невалидны.")
+            self.logger.info(f"Загрузка в модель завершена. {len(not_imported_json_data)} записей невалидны.")
         else:
-            self.logger.info('Дозагрузка полностью завершена')
+            self.logger.info('Загрузка в модель полностью завершена')
 
     def make_request(self, size_page, page_number):
         """
