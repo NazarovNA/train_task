@@ -57,41 +57,29 @@ class ParseExternalApi:
         """
         page_number = 1
         page_size = 1000
-        invalid_data = []
+        not_imported_json_data = []
         serializer = self.get_serializer()
+
+        # загрузка и запись/обновление данных
         while True:
             data = self.make_request(page_size, page_number)  # произведение запроса к API
             if data is None:
                 break
-            data += invalid_data
-            invalid_data = []
-            for record in data:
-
-                deserialized_data = serializer(data=copy.deepcopy(record))
-                if not deserialized_data.is_valid():
-                    self.logger.error(deserialized_data.errors)
-                    #print(record)
-                    #print(deserialized_data.errors)
-                    invalid_data.append(record)
-                    continue
-                deserialized_data.save()
+            not_imported_json, imported = self.deserializing(serializer=serializer, data=data)
+            not_imported_json_data.extend(not_imported_json)
             self.logger.info(f"Страница {page_number} из api загружена в модель")
             page_number += 1
 
-        while invalid_data:
-            len_data = len(invalid_data)
-            for record in invalid_data:
-                deserialized_data = serializer(data=copy.deepcopy(record))
-                if not deserialized_data.is_valid():
-                    self.logger.error(deserialized_data.errors)
-                    continue
-                deserialized_data.save()
-                invalid_data.remove(record)
-            len_invalid_data = len(invalid_data)
-            if len_data == len_invalid_data:
-                self.logger.info(f"{len(invalid_data)} записей невалидны.")
-                break
-        self.logger.info('Загрузка завершена')
+        # дозагрузка невалидных ранее данных
+        imported = 1
+        while not_imported_json_data and imported:
+            not_imported_json_data, imported = self.deserializing(serializer=serializer, data=not_imported_json_data)
+
+        if not not_imported_json_data:
+            self.deserializing(serializer=serializer, data=not_imported_json_data, flag_logger=True)
+            self.logger.info(f"Дозагрузка завершена. {len(not_imported_json_data)} записей невалидны.")
+        else:
+            self.logger.info('Загрузка полностью завершена')
 
     def make_request(self, size_page, page_number):
         """
@@ -99,15 +87,42 @@ class ParseExternalApi:
         """
         url = f"{self.base_url}?pageSize={size_page}&{self.url_settings}&pageNum={page_number}"
         self.logger.info(f"url по которой происходит запрос: {url}")
-        req = requests.get(url, timeout=10)
-        if (req.status_code == 200) and len(req.json()['data']) == size_page:
-            return req.json()['data']
-        else:
-            if req.status_code == 404:
-                self.logger.error(f"Страница с номером {page_number} не существует")
-                return None
-            self.logger.info(f"Загрузка завершилась на {page_number} странице")
+        try:
+            req = requests.get(url, timeout=10)
+        except:
+            self.logger.error(f"Загрузка данных на странице {page_number} вызвала ошибку")
             return None
+        if (req.status_code == 200) and len(req.json()['data']) != 0:
+            return req.json()['data']
+        elif (req.status_code == 200) and len(req.json()['data']) == 0:
+            self.logger.info(f"Загрузка завершилась на {page_number - 1} странице")
+            return None
+        else:
+            self.logger.error(f"Загрузка данных на странице {page_number} вызвала ошибку")
+            return None
+
+    def deserializing(self, serializer, data, flag_logger=False):
+        """
+        Метод, предназначенный для диссериализации записи и сохранения ее в модель
+        :param serializer: настроенный сериализатор
+        :param data: данные, которые необходимо сохранить
+        :param flag_logger: флаг для включения логирования ошибок
+        :return not_imported_json: данные, которые не удалось загрузить
+        :return imported: количество произведенных сохранений
+        """
+        not_imported_json = []
+        imported = 0
+        for record in data:
+            deserialized_data = serializer(data=copy.deepcopy(record))
+            if not deserialized_data.is_valid():
+                if flag_logger:
+                    self.logger.error(deserialized_data.errors)
+                not_imported_json.append(record)
+                continue
+            deserialized_data.save()
+            imported += 1
+
+        return not_imported_json, imported
 
     def get_serializer(self):
         """

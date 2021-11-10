@@ -1,5 +1,6 @@
 import os
 import sys
+from concurrent.futures._base import LOGGER
 from os.path import join
 
 from pathlib import Path
@@ -22,6 +23,28 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = ['*']
 
+LOGGING = {'version': 1,
+           'disable_existing_loggers': False,
+           'handlers': {
+               'file': {
+                   'level': 'INFO',
+                   'class': 'logging.FileHandler',
+                   'filename': 'C:\\Users\\strai\\Logs\\log.log'
+               },
+               'errors_file': {
+                   'level': 'WARNING',
+                   'class': 'logging.FileHandler',
+                   'filename': 'C:\\Users\\strai\\Logs\\logerror.log'
+               },
+           },
+           'loggers': {
+               'parser_task': {
+                   'handlers': ['file', 'errors_file'],
+                   'level': 'INFO',
+                   'propagate': True,
+               },
+           },
+           }
 
 # Application definition
 
@@ -72,7 +95,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'train_task.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
@@ -86,7 +108,6 @@ DATABASES = {
         'PORT': os.getenv('DB_APP_PORT'),
     },
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
@@ -134,7 +155,6 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = False
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
