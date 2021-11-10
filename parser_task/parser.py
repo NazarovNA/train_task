@@ -80,7 +80,7 @@ class ParseExternalApi:
 
         if not not_imported_json_data:
             self.deserializing(serializer=serializer, data=not_imported_json_data, flag_logger=True)
-            self.logger.info(f"Загрузка в модель завершена. {len(not_imported_json_data)} записей невалидны.")
+            self.logger.warning(f"Загрузка в модель завершена. {len(not_imported_json_data)} записей невалидны.")
         else:
             self.logger.info('Загрузка в модель полностью завершена')
 

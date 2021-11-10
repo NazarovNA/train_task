@@ -31,15 +31,20 @@ LOGGING = {'version': 1,
                    'class': 'logging.FileHandler',
                    'filename': 'C:\\Users\\strai\\Logs\\log.log'
                },
-               'errors_file': {
+               'warning_file': {
                    'level': 'WARNING',
+                   'class': 'logging.FileHandler',
+                   'filename': 'C:\\Users\\strai\\Logs\\logwarning.log'
+               },
+               'errors_file': {
+                   'level': 'ERROR',
                    'class': 'logging.FileHandler',
                    'filename': 'C:\\Users\\strai\\Logs\\logerror.log'
                },
            },
            'loggers': {
                'parser_task': {
-                   'handlers': ['file', 'errors_file'],
+                   'handlers': ['file', 'errors_file', 'warning_file'],
                    'level': 'INFO',
                    'propagate': True,
                },
