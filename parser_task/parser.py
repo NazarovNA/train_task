@@ -82,7 +82,7 @@ class ParseExternalApi:
             self.deserializing(serializer=serializer, data=not_imported_json_data, flag_logger=True)
             self.logger.info(f"Дозагрузка завершена. {len(not_imported_json_data)} записей невалидны.")
         else:
-            self.logger.info('Загрузка полностью завершена')
+            self.logger.info('Дозагрузка полностью завершена')
 
     def make_request(self, size_page, page_number):
         """
