@@ -15,7 +15,7 @@ class ParseExternalApi:
     занесения модели. Значениями являются словари, которые запоняются по шаблону
     {'Поле json': {'foreign_model': 'Модель в которой ищем', 'foreign_model_lookup_field':'Поле по которому ищем',
     'values_map': {'Какое значение': 'На какое заменяем'}}
-    Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели необходимо в заполнить
+    Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели необходимо заполнить
     параметры foreign_model: и foreign_model_lookup_field.
     Для замены определенных значений поля необходимо заполнить параметр values_map.
     :param json_fields кортеж полей json для заполнения модели
@@ -32,7 +32,7 @@ class ParseExternalApi:
         занесения модели. Значениями являются словари, которые запоняются по шаблону
         {'Поле json': {'foreign_model': 'Модель в которой ищем', 'foreign_model_lookup_field':'Поле по которому ищем',
         'values_map': {'Какое значение': 'На какое заменяем'}}
-        Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели необходимо в заполнить
+        Для указания поля pk в json с внешним кодом записи, по которому можно найти запись в модели необходимо заполнить
         параметры foreign_model: и foreign_model_lookup_field.
         Для замены определенных значений поля необходимо заполнить параметр values_map.
         :param json_fields кортеж полей json для заполнения модели
@@ -57,14 +57,17 @@ class ParseExternalApi:
         """
         page_number = 1
         page_size = 1000
+        page_count = 1
         not_imported_json_data = []
         serializer = self.get_serializer()
 
         # загрузка и запись/обновление данных
-        while True:
-            data = self.make_request(page_size, page_number)  # произведение запроса к API
-            if data is None:
+        while page_number <= page_count:
+            request = self.make_request(page_size, page_number)  # произведение запроса к API
+            if request is None:
                 break
+            data = request['data']
+            page_count = request['pageCount']
             not_imported_json, imported = self.deserializing(serializer=serializer, data=data)
             not_imported_json_data.extend(not_imported_json)
             self.logger.info(f"Страница {page_number} из api загружена в модель")
@@ -83,7 +86,7 @@ class ParseExternalApi:
 
     def make_request(self, size_page, page_number):
         """
-        Метод для произведения запроса к API.
+        Метод для отправки запроса к API.
         """
         url = f"{self.base_url}?pageSize={size_page}&{self.url_settings}&pageNum={page_number}"
         self.logger.info(f"url по которой происходит запрос: {url}")
@@ -92,13 +95,14 @@ class ParseExternalApi:
         except:
             self.logger.error(f"Загрузка данных на странице {page_number} вызвала ошибку")
             return None
+
         if (req.status_code == 200) and len(req.json()['data']) != 0:
-            return req.json()['data']
+            return req.json()
         elif (req.status_code == 200) and len(req.json()['data']) == 0:
-            self.logger.info(f"Загрузка завершилась на {page_number - 1} странице")
+            self.logger.error(f"При загрузке данных на странице {page_number} получен пустой ответ")
             return None
         else:
-            self.logger.error(f"Загрузка данных на странице {page_number} вызвала ошибку")
+            self.logger.error(f"Загрузка данных на странице {page_number} вызвала ошибку {req.status_code}")
             return None
 
     def deserializing(self, serializer, data, flag_logger=False):
@@ -128,7 +132,6 @@ class ParseExternalApi:
         """
         Метод для создания сериализатора с настройками для указанной модели.
         """
-
         class ConfiguredSerializer(ParseApiSerializer):
             class Meta:
                 model = self.model
